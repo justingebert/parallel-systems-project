@@ -1,14 +1,17 @@
-ifeq ($(shell uname),Darwin)
-export OMPI_CC := gcc-15
-endif
+CC ?= cc
+CFLAGS ?= -std=c11 -Wall -Wextra -Wpedantic -O2
+TARGET := rubiks-core
+SOURCES := main.c cube.c
 
-build:
-	mpicc -fopenmp hello.c -o hello
+build: $(TARGET)
 
-run:
-	mpirun -n 4 ./hello
+$(TARGET): $(SOURCES) cube.h
+	$(CC) $(CFLAGS) $(SOURCES) -o $(TARGET)
+
+run: build
+	./$(TARGET)
 
 clean:
-	rm -f hello
+	rm -f $(TARGET)
 
 .PHONY: build run clean

@@ -1,6 +1,7 @@
 # Parallel Rubik's Cube Solver
 
-Parallel Rubik's cube solver: parallel programming approaches in C.
+Rubik's cube solver project in C. The current version contains only the flat
+facelet engine; search, OpenMP, and MPI integration come later.
 
 ## Build and run
 
@@ -10,6 +11,9 @@ make run
 ```
 
 ## Local setup Dependencies
+
+The current core engine only needs a C11 compiler. The parallel toolchain below
+is for the later OpenMP/MPI work.
 
 ### Macos
 #### Prerequisites
