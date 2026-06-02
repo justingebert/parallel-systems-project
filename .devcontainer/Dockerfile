@@ -5,6 +5,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libopenmpi-dev \
     openmpi-bin \
     gdb \
+    git \
+    ca-certificates \
+    openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
 USER ubuntu
