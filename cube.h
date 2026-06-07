@@ -54,11 +54,11 @@ extern const uint8_t MOVE_PERMS[CUBE_MOVE_COUNT][CUBE_STICKERS];
 
 CubeState applyMove(CubeState state, CubeMove move);
 bool isSolved(CubeState state);
-CubeState scramble(CubeState state, size_t n, uint32_t seed);
+CubeState scramble(CubeState state, size_t n);
 CubeExpansion expand(CubeState state);
 
 CubeMove inverseMove(CubeMove move);
-CubeMove scrambleMove(size_t step, uint32_t seed);
+CubeMove scrambleMove();
 const char *moveName(CubeMove move);
 
 #endif

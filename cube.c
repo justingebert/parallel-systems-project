@@ -1,6 +1,8 @@
 #include "cube.h"
 
 #include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 enum {
     COLOR_U,
@@ -220,34 +222,17 @@ const uint8_t MOVE_PERMS[CUBE_MOVE_COUNT][CUBE_STICKERS] = {
     }
 };
 
-static uint32_t rngSeed(uint32_t seed)
-{
-    return seed == 0u ? 0x6d2b79f5u : seed;
-}
-
-static uint32_t rngNext(uint32_t *state)
-{
-    uint32_t value = *state;
-
-    value ^= value << 13;
-    value ^= value >> 17;
-    value ^= value << 5;
-    *state = value;
-
-    return value;
-}
-
 CubeState applyMove(CubeState state, CubeMove move)
 {
     /* Start from a copy so invalid moves can safely return the input state. */
     CubeState next = state;
 
-    if ((unsigned)move >= CUBE_MOVE_COUNT) {
+    if (move < 0 || move >= CUBE_MOVE_COUNT) {
         return next;
     }
 
     /* For each destination sticker, copy the sticker from its precomputed
-     * source position. The input state is never modified.
+     * source position.
      */
     for (size_t i = 0; i < CUBE_STICKERS; ++i) {
         next.stickers[i] = state.stickers[MOVE_PERMS[move][i]];
@@ -261,42 +246,25 @@ bool isSolved(CubeState state)
     return memcmp(state.stickers, SOLVED.stickers, sizeof(state.stickers)) == 0;
 }
 
-CubeMove scrambleMove(size_t step, uint32_t seed)
-{
-    /* Replays the local RNG up to one step so main can reconstruct the exact
-     * scramble sequence without scramble() storing any global or heap state.
-     */
-    uint32_t rng = rngSeed(seed);
-    uint32_t value = 0u;
-
-    for (size_t i = 0; i <= step; ++i) {
-        value = rngNext(&rng);
-    }
-
-    return (CubeMove)(value % CUBE_MOVE_COUNT);
+CubeMove scrambleMove()
+{   
+    return (CubeMove)(rand() % CUBE_MOVE_COUNT);
 }
 
-CubeState scramble(CubeState state, size_t n, uint32_t seed)
+CubeState scramble(CubeState state, size_t n)
 {
-    /* RNG state is local to this call, so the same input state, n, and seed
-     * always produce the same output state.
-     */
-    uint32_t rng = rngSeed(seed);
-
     for (size_t i = 0; i < n; ++i) {
-        state = applyMove(state, (CubeMove)(rngNext(&rng) % CUBE_MOVE_COUNT));
+        state = applyMove(state, scrambleMove());
     }
 
     return state;
 }
 
+/* retuns all 18 states reachable by one move from the input state. */
 CubeExpansion expand(CubeState state)
 {
     CubeExpansion expansion;
 
-    /* One independent child state per legal face turn. This layout is ready for
-     * later parallel loops because each array slot is written independently.
-     */
     for (CubeMove move = MOVE_U; move < CUBE_MOVE_COUNT; ++move) {
         expansion.states[move] = applyMove(state, move);
     }
@@ -315,7 +283,7 @@ CubeMove inverseMove(CubeMove move)
         MOVE_B_PRIME, MOVE_B2, MOVE_B
     };
 
-    if ((unsigned)move >= CUBE_MOVE_COUNT) {
+    if (move < 0 || move >= CUBE_MOVE_COUNT) {
         return move;
     }
 
@@ -333,8 +301,8 @@ const char *moveName(CubeMove move)
         "B", "B2", "B'"
     };
 
-    if ((unsigned)move >= CUBE_MOVE_COUNT) {
-        return "?";
+    if (move < 0 || move >= CUBE_MOVE_COUNT) {
+        return "NONO!";
     }
 
     return names[move];
