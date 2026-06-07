@@ -1,4 +1,5 @@
 /hello
+/rubiks-core
 *.o
 .idea
 .vscode
