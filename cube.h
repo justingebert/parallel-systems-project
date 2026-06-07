@@ -9,6 +9,11 @@
 #define CUBE_MOVE_COUNT 18
 
 typedef struct {
+    /* Stickers are stored as face colors, not cubies.
+     * Face order is U, R, F, D, L, B. Each face uses 9 row-major stickers.
+     * This is intentionally just 54 bytes so MPI can send it directly and
+     * OpenMP threads can copy it cheaply without ownership concerns.
+     */
     uint8_t stickers[CUBE_STICKERS];
 } CubeState;
 
@@ -16,6 +21,9 @@ _Static_assert(sizeof(CubeState) == CUBE_STICKERS,
                "CubeState must stay a flat 54-byte value");
 
 typedef enum {
+    /* Each face has the usual clockwise quarter turn, half turn, and inverse.
+     * Clockwise means "clockwise when looking directly at that face".
+     */
     MOVE_U,
     MOVE_U2,
     MOVE_U_PRIME,
@@ -37,6 +45,7 @@ typedef enum {
 } CubeMove;
 
 typedef struct {
+    /* expand(state) returns these 18 states in the same order as CubeMove. */
     CubeState states[CUBE_MOVE_COUNT];
 } CubeExpansion;
 

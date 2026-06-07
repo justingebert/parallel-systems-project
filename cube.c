@@ -23,8 +23,37 @@ const CubeState SOLVED = {
 };
 
 /*
- * Facelet order is U, R, F, D, L, B, each face row-major as viewed from outside.
- * A permutation row maps destination index i to the source index copied into it.
+ * Facelet indexing
+ * ----------------
+ * The 54 stickers are grouped by face in this order:
+ *
+ *   U:  0.. 8   R:  9..17   F: 18..26
+ *   D: 27..35   L: 36..44   B: 45..53
+ *
+ * Within each face, stickers are row-major as viewed from outside the cube:
+ *
+ *   0 1 2
+ *   3 4 5
+ *   6 7 8
+ *
+ * MOVE_PERMS
+ * ----------
+ * MOVE_PERMS[move][dst] gives the source sticker copied into destination dst.
+ *
+ * applyMove() therefore does:
+ *
+ *   next.stickers[dst] = state.stickers[MOVE_PERMS[move][dst]]
+ *
+ * Example: for MOVE_U, the first entry is 6, so destination sticker 0 receives
+ * old sticker 6. That rotates the U face clockwise: old bottom-left moves to
+ * new top-left. The side-face entries in the same row rotate the top edge ring.
+ *
+ * Each initializer below is formatted as six lines of nine numbers. Those six
+ * lines match the face order U, R, F, D, L, B, which makes it easier to see
+ * which face positions a move changes.
+ *
+ * This destination-to-source form is useful because each output sticker is
+ * written exactly once, with no temporary swaps and no mutation of the input.
  */
 const uint8_t MOVE_PERMS[CUBE_MOVE_COUNT][CUBE_STICKERS] = {
     /* U */
@@ -210,12 +239,16 @@ static uint32_t rngNext(uint32_t *state)
 
 CubeState applyMove(CubeState state, CubeMove move)
 {
+    /* Start from a copy so invalid moves can safely return the input state. */
     CubeState next = state;
 
     if ((unsigned)move >= CUBE_MOVE_COUNT) {
         return next;
     }
 
+    /* For each destination sticker, copy the sticker from its precomputed
+     * source position. The input state is never modified.
+     */
     for (size_t i = 0; i < CUBE_STICKERS; ++i) {
         next.stickers[i] = state.stickers[MOVE_PERMS[move][i]];
     }
@@ -230,6 +263,9 @@ bool isSolved(CubeState state)
 
 CubeMove scrambleMove(size_t step, uint32_t seed)
 {
+    /* Replays the local RNG up to one step so main can reconstruct the exact
+     * scramble sequence without scramble() storing any global or heap state.
+     */
     uint32_t rng = rngSeed(seed);
     uint32_t value = 0u;
 
@@ -242,6 +278,9 @@ CubeMove scrambleMove(size_t step, uint32_t seed)
 
 CubeState scramble(CubeState state, size_t n, uint32_t seed)
 {
+    /* RNG state is local to this call, so the same input state, n, and seed
+     * always produce the same output state.
+     */
     uint32_t rng = rngSeed(seed);
 
     for (size_t i = 0; i < n; ++i) {
@@ -255,6 +294,9 @@ CubeExpansion expand(CubeState state)
 {
     CubeExpansion expansion;
 
+    /* One independent child state per legal face turn. This layout is ready for
+     * later parallel loops because each array slot is written independently.
+     */
     for (CubeMove move = MOVE_U; move < CUBE_MOVE_COUNT; ++move) {
         expansion.states[move] = applyMove(state, move);
     }
