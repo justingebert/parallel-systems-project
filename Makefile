@@ -1,5 +1,5 @@
-CC ?= cc
-CFLAGS ?= -std=c11 -Wall -Wextra -Wpedantic -O2
+CC ?= gcc
+CFLAGS ?= -std=c11 -Wall -Wextra -Wpedantic -O2 -fopenmp
 TARGET := rubiks-core
 SIMPLE_TARGET := cube-simple
 SOURCES := main.c cube.c

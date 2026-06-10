@@ -10,55 +10,6 @@ make build
 make run
 ```
 
-## Local setup Dependencies
-
-The current core engine only needs a C11 compiler. The parallel toolchain below
-is for the later OpenMP/MPI work.
-
-### Macos
-#### Prerequisites
-
-- **Xcode Command Line Tools**:
-- **[Homebrew](https://brew.sh)**
-
-#### Install
-
-Install the parallel toolchain (Open MPI + GCC):
-
-   ```sh
-   brew install open-mpi gcc
-   ```
-   
-No separate OpenMP package is needed, Homebrew's `gcc` bundles the GNU
-OpenMP runtime (`libgomp`).
-
-The Makefile pins `gcc-15` (via `OMPI_CC`) on macOS to avoid bugs with Apple's
-clang and OpenMP.
-
-### Windows
-
-Native Windows has no Open MPI / OpenMP toolchain that matches the Makefile, so
-use **WSL2** (Ubuntu) — this mirrors the dev container environment.
-
-1. Install WSL2 with Ubuntu (run in an **admin** PowerShell, then reboot):
-
-   ```powershell
-   wsl --install -d Ubuntu
-   ```
-
-   See the [WSL2 install guide](https://learn.microsoft.com/en-us/windows/wsl/install)
-   for details.
-
-2. Open the **Ubuntu** terminal and install the toolchain:
-
-   ```sh
-   sudo apt-get update
-   sudo apt-get install -y build-essential libopenmpi-dev openmpi-bin gdb git
-   ```
-
-3. Clone the repo *inside* the WSL filesystem (not under `/mnt/c`, for speed)
-   and build:
-
 ## Dev container
 
 ### Prerequisites
