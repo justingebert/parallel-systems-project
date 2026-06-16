@@ -1,23 +1,16 @@
 #include "cube.h"
 
 #include <stdio.h>
+#include <math.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdatomic.h>
 #include <omp.h>
 
-static size_t numExpandedStates(CubeExpansion expansion) {
-    return sizeof(expansion.states) / sizeof(expansion.states[0]);
-}
 
-/* Recursive DFS that can be cancelled mid-search. When `cancel` is non-NULL and
- * becomes true (because another thread already found a solution), the recursion
- * unwinds early instead of grinding through the rest of its subtree. This is
- * what lets the parallel searches keep the serial version's early-exit pruning.
- * A relaxed load is sufficient: we only need to stop eventually, not exactly. */
 static bool depthFirstSearchCancellable(CubeState cube, int length, atomic_bool *cancel) {
-    if (cancel && atomic_load_explicit(cancel, memory_order_relaxed)) {
+    if (cancel && atomic_load(cancel)) {
         return false;
     }
 
@@ -30,13 +23,66 @@ static bool depthFirstSearchCancellable(CubeState cube, int length, atomic_bool 
     }
 
     CubeExpansion expansion = expand(cube);
-    const size_t n = numExpandedStates(expansion);
 
-    for (size_t i = 0; i < n; i++) {
+    for (size_t i = 0; i < CUBE_MOVE_COUNT; i++) {
         if (depthFirstSearchCancellable(expansion.states[i], length - 1, cancel)) {
             return true;
         }
     }
+
+    return false;
+}
+
+
+static bool depthFirstSearchCancellableOpenMP(CubeState cube, int length, atomic_bool *cancel, int *initialLength) {
+    if (cancel && atomic_load(cancel)) {
+        return false;
+    }
+
+    if (isSolved(cube)) {
+        return true;
+    }
+
+    if (length == 0) {
+        return false;
+    }    
+
+    CubeExpansion expansion = expand(cube);
+    int cutoff = *initialLength - 2;
+
+    for (size_t i = 0; i < CUBE_MOVE_COUNT; i++) {
+            #pragma omp task if(length > cutoff) firstprivate(i) shared(cancel, expansion)
+            {
+                if (!atomic_load(cancel)) {
+                    if (depthFirstSearchCancellableOpenMP(expansion.states[i], length - 1, cancel, initialLength)) {
+                        atomic_store(cancel, true);
+                    }
+                }
+            }
+        }
+
+    /*
+    if (length >= *initialLength - 2)
+    {
+        for (size_t i = 0; i < CUBE_MOVE_COUNT; i++) {
+            #pragma omp task firstprivate(i) shared(cancel, expansion)
+            {
+                if (!atomic_load(cancel)) {
+                    if (depthFirstSearchCancellableOpenMP(expansion.states[i], length - 1, cancel, initialLength)) {
+                        atomic_store(cancel, true);
+                    }
+                }
+            }
+        }
+        #pragma omp taskwait
+    } else {
+        for (size_t i = 0; i < CUBE_MOVE_COUNT; i++) {
+            if (depthFirstSearchCancellableOpenMP(expansion.states[i], length - 1, cancel, initialLength)) {
+                return true;
+            }
+        }
+    }
+    */
 
     return false;
 }
@@ -55,12 +101,11 @@ bool initParallelDfs(CubeState cube, int length) {
     }
 
     CubeExpansion expansion = expand(cube);
-    const size_t n = numExpandedStates(expansion);
 
     atomic_bool found = false;
 
-    #pragma omp parallel for schedule(dynamic) shared(found, expansion)
-    for (size_t i = 0; i < n; i++) {
+    #pragma omp parallel for schedule(static) default(none) shared(expansion, length, found)
+    for (size_t i = 0; i < CUBE_MOVE_COUNT; i++) {
         if (atomic_load(&found)) {
             continue;
         }
@@ -83,7 +128,6 @@ bool initParallelDfsWithTaskloop(CubeState cube, int length) {
     }
 
     CubeExpansion expansion = expand(cube);
-    const size_t n = numExpandedStates(expansion);
 
     atomic_bool found = false;
 
@@ -92,7 +136,7 @@ bool initParallelDfsWithTaskloop(CubeState cube, int length) {
         #pragma omp single
         {
             #pragma omp taskloop shared(found, expansion)
-            for (size_t i = 0; i < n; i++) {
+            for (size_t i = 0; i < CUBE_MOVE_COUNT; i++) {
                 if (atomic_load(&found)) {
                     continue;
                 }
@@ -117,7 +161,6 @@ bool initParallelDfsWithManualTasks(CubeState cube, int length) {
     }
 
     CubeExpansion expansion = expand(cube);
-    const size_t n = numExpandedStates(expansion);
 
     atomic_bool found = false;
 
@@ -125,11 +168,11 @@ bool initParallelDfsWithManualTasks(CubeState cube, int length) {
     {
         #pragma omp single
         {
-            for (size_t i = 0; i < n; i++) {
+            for (size_t i = 0; i < CUBE_MOVE_COUNT; i++) {
                 #pragma omp task firstprivate(i) shared(found, expansion)
                 {
                     if (!atomic_load(&found)) {
-                        if (depthFirstSearchCancellable(expansion.states[i], length - 1, &found)) {
+                        if (depthFirstSearchCancellableOpenMP(expansion.states[i], length - 1, &found, &length)) {
                             atomic_store(&found, true);
                         }
                     }
@@ -171,12 +214,13 @@ int main(void) {
 
     printf("Used Seed: %u\n", seed);
     printf("Num of Scrambles: %d\n", SCRAMBLE_LEN);
+    printf("Number of Nodes in Search Tree: %zu\n", (size_t)pow(CUBE_MOVE_COUNT, SCRAMBLE_LEN));
     printf("Num of Cores: %d\n", omp_get_num_procs());
     printf("Num max Threads: %d\n", omp_get_max_threads());
     printf("\n");
 
-    runTest("Serial DFS", depthFirstSearch, cube, SCRAMBLE_LEN);
-    runTest("OpenMP parallel for", initParallelDfs, cube, SCRAMBLE_LEN);
+    // runTest("Serial DFS", depthFirstSearch, cube, SCRAMBLE_LEN);
+    // runTest("OpenMP parallel for", initParallelDfs, cube, SCRAMBLE_LEN);
     runTest("OpenMP taskloop", initParallelDfsWithTaskloop, cube, SCRAMBLE_LEN);
     runTest("OpenMP manual tasks", initParallelDfsWithManualTasks, cube, SCRAMBLE_LEN);
 
