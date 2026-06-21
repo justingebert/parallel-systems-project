@@ -1,5 +1,5 @@
 #include "solve.h"
- 
+
 #include <stdatomic.h>
 #include <omp.h>
 
@@ -25,66 +25,6 @@ static bool depthFirstSearchCancellable(CubeState cube, int length, atomic_bool 
         }
     }
 
-    return false;
-}
-
-
-static bool depthFirstSearchCancellableManualTasks(CubeState cube, int length, atomic_bool *cancel, int *initialLength) {
-    if (cancel && atomic_load(cancel)) {
-        return false;
-    }
-
-    if (isSolved(cube)) {
-        return true;
-    }
-
-    if (length == 0) {
-        return false;
-    }    
-
-    CubeExpansion expansion = expand(cube);
-    int cutoff = *initialLength - 2;
-
-    // discard the task if approach: it still spawns tasks until the deepest level, which introduces a huge overhead
-    /*
-    for (size_t i = 0; i < CUBE_MOVE_COUNT; i++) 
-    {
-        #pragma omp task if(length > cutoff) firstprivate(i, expansion) shared(cancel, initialLength)
-        {
-            if (!atomic_load(cancel)) {
-                if (depthFirstSearchCancellableManualTasks(expansion.states[i], length - 1, cancel, initialLength)) {
-                    atomic_store(cancel, true);
-                }
-            }
-        }
-    }
-    #pragma omp taskwait
-    */
-    
-    if (length > cutoff)
-    {
-        for (size_t i = 0; i < CUBE_MOVE_COUNT; i++) {
-            #pragma omp task firstprivate(i, expansion) shared(cancel, initialLength) // need expansion in firstprivate, sharing the object (apparently) introduces a race condition
-            {
-                if (!atomic_load(cancel)) {
-                    if (depthFirstSearchCancellableManualTasks(expansion.states[i], length - 1, cancel, initialLength)) {
-                        atomic_store(cancel, true);
-                    }
-                }
-            }
-        }
-        #pragma omp taskwait // important since the function discards child results otherwise - thats why we got solved=false sometimes
-    } else {
-        for (size_t i = 0; i < CUBE_MOVE_COUNT; i++) {
-            if (atomic_load(cancel)) {
-                return false;
-            }
-            if (depthFirstSearchCancellableManualTasks(expansion.states[i], length - 1, cancel, initialLength)) {
-                return true;
-            }
-        }
-    }
-    
     return false;
 }
 
@@ -156,35 +96,105 @@ bool initParallelDfsWithTaskloop(CubeState cube, int length) {
 }
 
 
-bool initParallelDfsWithManualTasks(CubeState cube, int length) {
+static void searchTaskgroup(CubeState cube, int length, int cutoff, atomic_bool *found) {
+    if (atomic_load(found)) {
+        return;
+    }
+
     if (isSolved(cube)) {
-        return true;
+        atomic_store(found, true);
+        return;
     }
 
     if (length == 0) {
-        return false;
+        return;
     }
 
     CubeExpansion expansion = expand(cube);
 
+    if (length > cutoff) {
+        for (size_t i = 0; i < CUBE_MOVE_COUNT; i++) {
+            CubeState child = expansion.states[i];
+            #pragma omp task default(none) firstprivate(child, length, cutoff) shared(found)
+            searchTaskgroup(child, length - 1, cutoff, found);
+        }
+        /* no taskwait: the taskgroup in initParallelDfsWithTaskgroup waits for every descendant at once. */
+    } else {
+        for (size_t i = 0; i < CUBE_MOVE_COUNT; i++) {
+            if (atomic_load(found)) {
+                return;
+            }
+            searchTaskgroup(expansion.states[i], length - 1, cutoff, found);
+        }
+    }
+}
+
+
+static void searchTaskwait(CubeState cube, int length, int cutoff, atomic_bool *found) {
+    if (atomic_load(found)) {
+        return;
+    }
+
+    if (isSolved(cube)) {
+        atomic_store(found, true);
+        return;
+    }
+
+    if (length == 0) {
+        return;
+    }
+
+    CubeExpansion expansion = expand(cube);
+
+    if (length > cutoff) {
+        for (size_t i = 0; i < CUBE_MOVE_COUNT; i++) {
+            CubeState child = expansion.states[i];
+            #pragma omp task default(none) firstprivate(child, length, cutoff) shared(found)
+            searchTaskwait(child, length - 1, cutoff, found);
+        }
+        #pragma omp taskwait /* fork-join: block until this level's children finish */
+    } else {
+        for (size_t i = 0; i < CUBE_MOVE_COUNT; i++) {
+            if (atomic_load(found)) {
+                return;
+            }
+            searchTaskwait(expansion.states[i], length - 1, cutoff, found);
+        }
+    }
+}
+
+
+bool initParallelDfsWithTaskgroup(CubeState cube, int length) {
     atomic_bool found = false;
 
-    #pragma omp parallel shared(found, expansion)
+    /* Lower cutoff -> more, smaller tasks. */
+    const int cutoff = length - 2;
+
+    #pragma omp parallel shared(found)
     {
         #pragma omp single
         {
-            for (size_t i = 0; i < CUBE_MOVE_COUNT; i++) {
-                #pragma omp task firstprivate(i) shared(found, expansion)
-                {
-                    if (!atomic_load(&found)) {
-                        if (depthFirstSearchCancellableManualTasks(expansion.states[i], length - 1, &found, &length)) {
-                            atomic_store(&found, true);
-                        }
-                    }
-                }
+            #pragma omp taskgroup
+            {
+                searchTaskgroup(cube, length, cutoff, &found);
             }
+        }
+    }
 
-            #pragma omp taskwait
+    return atomic_load(&found);
+}
+
+
+bool initParallelDfsWithTaskwait(CubeState cube, int length) {
+    atomic_bool found = false;
+
+    const int cutoff = length - 2;
+
+    #pragma omp parallel shared(found)
+    {
+        #pragma omp single
+        {
+            searchTaskwait(cube, length, cutoff, &found);
         }
     }
 

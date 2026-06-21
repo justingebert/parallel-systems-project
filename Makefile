@@ -1,8 +1,8 @@
 CC ?= gcc
-CFLAGS ?= -std=c11 -Wall -Wextra -Wpedantic -O2 -fopenmp
+CFLAGS ?= -std=c11 -Wall -Wextra -Wpedantic -O2 -fopenmp -Ilib
 TARGET := rubiks-core
 SIMPLE_TARGET := cube-simple
-SOURCES := main.c cube.c solve.c benchmark.c
+SOURCES := main.c cube.c solve.c benchmark.c lib/cJSON.c
 
 build: $(TARGET)
 
