@@ -1,64 +1,45 @@
 #include "cube.h"
+#include "solve.h"
+#include "benchmark.h"
 
 #include <stdio.h>
+#include <math.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <omp.h>
 
-bool depthFirstSearch(CubeState cube, int length) {
-    if(isSolved(cube)){
-        return true;
+int main(void) {
+    BenchmarkConfig config = {
+        .scrambleLen = 8,
+        .seed = 20260602u,
+        .numCores = 16,
+        .repeats = 5
     };
 
-    if (length == 0) {
-        return false;
-    }
-    
-    CubeExpansion expansion = expand(cube);
-    for (long unsigned int i = 0; i < (sizeof(expansion.states) / sizeof(expansion.states[0])); i++) {
-        if (depthFirstSearch(expansion.states[i], length - 1)) {
-            return true;
-        }
-    }
+    struct {
+        const char *technology;
+        const char *algorithm;
+        SolveFn fn;
+    } algos[] = {
+        {"serial", "baseline",     depthFirstSearch},
+        {"OpenMP", "parallel_for", initParallelDfs},
+        {"OpenMP", "taskloop",     initParallelDfsWithTaskloop},
+        {"OpenMP", "taskgroup",    initParallelDfsWithTaskgroup},
+        {"OpenMP", "taskwait",     initParallelDfsWithTaskwait},
+    };
+    const int count = sizeof(algos) / sizeof(algos[0]);
 
-    return false;
-}
-
-bool initDfs(CubeState cube, int length) {
-    CubeExpansion expansion = expand(cube);
-
-    bool found = false;
-    
-    #pragma omp parallel for schedule(dynamic) shared(found)
-    for (long unsigned int i = 0; i < (sizeof(expansion.states) / sizeof(expansion.states[0])); i++) {
-        if (found) continue;
+    BenchmarkResult results[count];
+    for (int i = 0; i < count; ++i) {
+        results[i] = benchmarkAlgorithm(algos[i].fn, algos[i].technology, algos[i].algorithm, config);
         
-        printf("Hello from thread %d of %d\n", omp_get_thread_num(), omp_get_num_threads());
-
-        if (depthFirstSearch(expansion.states[i], length - 1)) {
-            found = true;
-        }
+        printf("Result: avg=%.6fs min=%.6fs max=%.6fs solved=%d/%d technology=%s algorithm=%s\n",
+               results[i].avgSeconds, results[i].minSeconds, results[i].maxSeconds,
+               results[i].solvedCount, config.repeats, results[i].technology, results[i].algorithm);
     }
 
-    return found;
-}
+    writeBenchmarkReport(config, results, count);
 
-int main(void)
-{   
-
-    enum { SCRAMBLE_LEN = 8 };
-    const uint32_t seed = 20260602u;
-    srand(seed);
-
-    CubeState cube = scramble(SOLVED, SCRAMBLE_LEN);
-    
-    omp_set_num_threads(18);
-
-    printf("Num of Cores: %d\n", omp_get_num_procs());
-    printf("Num max Threads: %d\n", omp_get_max_threads());
-
-    bool result = initDfs(cube, SCRAMBLE_LEN);
-    //bool result = depthFirstSearch(cube, SCRAMBLE_LEN);
-
-    printf("Check cube state: %s\n", result ? "solved" : "failed");
-    return result ? 0 : 1;
+    return 0;
 }
