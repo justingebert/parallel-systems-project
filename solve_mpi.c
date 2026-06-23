@@ -4,6 +4,7 @@
 
 #include "solve_mpi.h"
 #include "cube.h"
+#include "solve.h"
 
 #define JOB_DEPTH 2
 
@@ -26,7 +27,7 @@ static int generateMPIJobs(CubeState cube, int currentDepth, int remainingDepth,
 }
 
 
-bool initMpi(CubeState cube, int length) {
+bool solveCubeWithMPIScatter(CubeState cube, int length) {
     MPI_Init(NULL, NULL);
 
     int rank, size;
@@ -48,12 +49,56 @@ bool initMpi(CubeState cube, int length) {
         totalJobs = generateMPIJobs(cube, JOB_DEPTH, length, allJobs);
 
         printf("Generated %d jobs across %d MPI ranks\n", totalJobs, size);
-
-        free(allJobs);
-    } else {
-        printf("Hello World from process %d of %d\n", rank, size);
     }
 
+    MPI_Bcast(&totalJobs, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    int jobsPerRank = (int)(totalJobs / size); //Round result
+
+    MPISearchJob *localJobs = malloc(sizeof(MPISearchJob) * jobsPerRank);
+
+    MPI_Scatter(
+        allJobs,
+        jobsPerRank * sizeof(MPISearchJob),
+        MPI_BYTE,
+        localJobs,
+        jobsPerRank * sizeof(MPISearchJob),
+        MPI_BYTE,
+        0,
+        MPI_COMM_WORLD
+    );
+
+    printf("Rank %d received %d jobs\n", rank, jobsPerRank);
+
+    bool localFound = false;
+    
+    for (int i = 0; i < jobsPerRank; ++i) {
+        MPISearchJob job = localJobs[i];
+
+        if(depthFirstSearch(job.cube, job.remainingDepth)) {
+            localFound = true;
+            break;
+        }
+    }
+
+    int localFoundInt = localFound ? 1 : 0;
+    int globalFoundInt = 0;
+
+    MPI_Reduce(&localFoundInt, &globalFoundInt, 1, MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+
+    if (rank == 0) {
+        if(globalFoundInt) {
+            printf("Solution found\n");
+        } else {
+            printf("No solution found\n");
+        }
+    }
+
+    free(localJobs);
+
+    if (rank == 0) {
+        free(allJobs);
+    }
 
     MPI_Finalize();
     return true;

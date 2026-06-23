@@ -9,7 +9,7 @@ typedef struct {
     int remainingDepth;
 } MPISearchJob;
 
-bool initMpi(CubeState cube, int length);
+bool solveCubeWithMPIScatter(CubeState cube, int length);
 
 
 #endif

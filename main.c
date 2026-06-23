@@ -44,7 +44,7 @@ int main(void) {
     // writeBenchmarkReport(config, results, count);
     
     CubeState cube = scramble(SOLVED, 8);
-    initMpi(cube, 8);
+    solveCubeWithMPIScatter(cube, 8);
 
     return 0;
 }
