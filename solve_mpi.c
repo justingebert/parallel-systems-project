@@ -9,6 +9,13 @@
 #define JOB_DEPTH 2
 
 static int generateMPIJobs(CubeState cube, int currentDepth, int remainingDepth, MPISearchJob *jobs) {
+    if (isSolved(cube)) {
+        jobs[0].cube = cube;
+        jobs[0].remainingDepth = 0;
+
+        return 1;
+    }     
+
     if (currentDepth == 0) {
         jobs[0].cube = cube;
         jobs[0].remainingDepth = remainingDepth;
@@ -28,8 +35,6 @@ static int generateMPIJobs(CubeState cube, int currentDepth, int remainingDepth,
 
 
 bool solveCubeWithMPIScatter(CubeState cube, int length) {
-    MPI_Init(NULL, NULL);
-
     int rank, size;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -84,7 +89,7 @@ bool solveCubeWithMPIScatter(CubeState cube, int length) {
     int localFoundInt = localFound ? 1 : 0;
     int globalFoundInt = 0;
 
-    MPI_Reduce(&localFoundInt, &globalFoundInt, 1, MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Allreduce(&localFoundInt, &globalFoundInt, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
     if (rank == 0) {
         if(globalFoundInt) {
@@ -100,7 +105,6 @@ bool solveCubeWithMPIScatter(CubeState cube, int length) {
         free(allJobs);
     }
 
-    MPI_Finalize();
-    return true;
+    return globalFoundInt != 0;
 }
 

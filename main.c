@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <omp.h>
+#include <mpi.h>
 
 #include "solve_mpi.h"
 
@@ -43,8 +44,12 @@ int main(void) {
 
     // writeBenchmarkReport(config, results, count);
     
+    MPI_Init(NULL, NULL);
+
     CubeState cube = scramble(SOLVED, 8);
     solveCubeWithMPIScatter(cube, 8);
+
+    MPI_Finalize();
 
     return 0;
 }
