@@ -10,6 +10,7 @@ typedef struct {
 } MPISearchJob;
 
 bool solveCubeWithMPIScatter(CubeState cube, int length);
+bool solveCubeWithMPIMasterWorker(CubeState cube, int length);
 
 
 #endif

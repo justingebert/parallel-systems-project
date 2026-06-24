@@ -47,7 +47,8 @@ int main(void) {
     MPI_Init(NULL, NULL);
 
     CubeState cube = scramble(SOLVED, 8);
-    solveCubeWithMPIScatter(cube, 8);
+    // solveCubeWithMPIScatter(cube, 8);
+    solveCubeWithMPIMasterWorker(cube, 8);
 
     MPI_Finalize();
 
