@@ -1,6 +1,7 @@
 #include "cube.h"
 #include "solve.h"
 #include "benchmark.h"
+#include "ida_star.h"
 
 #include <stdio.h>
 #include <math.h>
@@ -22,11 +23,12 @@ int main(void) {
         const char *algorithm;
         SolveFn fn;
     } algos[] = {
-        {"serial", "baseline",     depthFirstSearch},
-        {"OpenMP", "parallel_for", initParallelDfs},
-        {"OpenMP", "taskloop",     initParallelDfsWithTaskloop},
+        //{"serial", "baseline",     depthFirstSearch},
+        {"serial", "ida_star",     initIdaStar},
+        //{"OpenMP", "parallel_for", initParallelDfs},
+        //{"OpenMP", "taskloop",     initParallelDfsWithTaskloop},
         {"OpenMP", "taskgroup",    initParallelDfsWithTaskgroup},
-        {"OpenMP", "taskwait",     initParallelDfsWithTaskwait},
+        //{"OpenMP", "taskwait",     initParallelDfsWithTaskwait},
     };
     const int count = sizeof(algos) / sizeof(algos[0]);
 

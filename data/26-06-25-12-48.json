@@ -1,0 +1,54 @@
+{
+	"timestamp":	"26-06-25-12-48",
+	"seed":	20260602,
+	"scrambleMoves":	8,
+	"cores":	16,
+	"repeats":	5,
+	"results":	[{
+			"technology":	"serial",
+			"algorithm":	"ida_star",
+			"avg":	0.010413378599696443,
+			"min":	0.010179152001001057,
+			"max":	0.010522258999117184,
+			"solved":	5,
+			"runs":	[{
+					"time":	0.010522258999117184,
+					"solved":	true
+				}, {
+					"time":	0.010179152001001057,
+					"solved":	true
+				}, {
+					"time":	0.010432743998535443,
+					"solved":	true
+				}, {
+					"time":	0.010417794999739272,
+					"solved":	true
+				}, {
+					"time":	0.010514943000089261,
+					"solved":	true
+				}]
+		}, {
+			"technology":	"OpenMP",
+			"algorithm":	"taskgroup",
+			"avg":	7.3609108077998826,
+			"min":	1.3784468399990146,
+			"max":	15.084889028999896,
+			"solved":	5,
+			"runs":	[{
+					"time":	15.084889028999896,
+					"solved":	true
+				}, {
+					"time":	1.3784468399990146,
+					"solved":	true
+				}, {
+					"time":	5.9095655439996335,
+					"solved":	true
+				}, {
+					"time":	10.949327718000859,
+					"solved":	true
+				}, {
+					"time":	3.48232490800001,
+					"solved":	true
+				}]
+		}]
+}

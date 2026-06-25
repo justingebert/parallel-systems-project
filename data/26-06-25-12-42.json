@@ -1,0 +1,31 @@
+{
+	"timestamp":	"26-06-25-12-42",
+	"seed":	20260602,
+	"scrambleMoves":	13,
+	"cores":	16,
+	"repeats":	5,
+	"results":	[{
+			"technology":	"serial",
+			"algorithm":	"ida_star",
+			"avg":	62.5484642882002,
+			"min":	62.3021345090001,
+			"max":	62.678571151000142,
+			"solved":	5,
+			"runs":	[{
+					"time":	62.3021345090001,
+					"solved":	true
+				}, {
+					"time":	62.590243968999857,
+					"solved":	true
+				}, {
+					"time":	62.627145694001229,
+					"solved":	true
+				}, {
+					"time":	62.544226117999642,
+					"solved":	true
+				}, {
+					"time":	62.678571151000142,
+					"solved":	true
+				}]
+		}]
+}
