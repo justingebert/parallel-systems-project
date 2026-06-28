@@ -1,10 +1,11 @@
 #include "ida_star.h"
 #include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 
 // estimates the number of moves needed to solve the cube state by counting wrong stickers and dividing by 9 (the number of stickers per face)
-static int heuristic(CubeState cube) {
+static int heuristic_old(CubeState cube) {
     int wrong = 0;
 
     for (int i = 0; i < CUBE_STICKERS; ++i) {
@@ -14,6 +15,57 @@ static int heuristic(CubeState cube) {
     }
 
     return wrong / 9;
+}
+
+static int heuristic(CubeState cube) {
+    // Corner sticker triplets
+    static const int corners[8][3] = {
+        {  8,  9, 20 }, {  6, 18, 38 },
+        {  0, 36, 47 }, {  2, 45, 11 },
+        { 29, 26, 15 }, { 27, 44, 24 },
+        { 33, 53, 42 }, { 35, 17, 51 },
+    };
+
+    // Edge sticker pairs
+    static const int edges[12][2] = {
+        {  1, 46 }, {  5, 10 }, {  7, 19 }, {  3, 37 },
+        { 39, 50 }, { 41, 21 }, { 23, 12 }, { 14, 48 },
+        { 16, 32 }, { 28, 25 }, { 30, 43 }, { 34, 52 },
+    };
+
+    // go through all corners and check which ones are in the wrong position
+    int wrong_corners = 0;
+    
+    for (int i = 0; i < 8; i++) {
+        for (int k = 0; k < 3; k++) {
+            int idx = corners[i][k];
+            if (cube.stickers[idx] != SOLVED.stickers[idx]) {
+                wrong_corners++;
+                break; // count whole corner as 1, not 3 for each sticker
+            }
+        }
+    }
+
+    // go through all edges and check which ones are in the wrong position
+    int wrong_edges = 0;
+
+    for (int i = 0; i < 12; i++) {
+        for (int k = 0; k < 2; k++) {
+            int idx = edges[i][k];
+            if (cube.stickers[idx] != SOLVED.stickers[idx]) {
+                wrong_edges++;
+                break; // count whole edge as 1, not 2 for each sticker
+            }
+        }
+    }
+
+    // one move can fix at most four corners/edges in the best case scenario
+    //   -> underestimate the number of moves needed to not miss a solution
+    if(wrong_corners > wrong_edges) {
+        return wrong_corners / 4; 
+    } else {
+        return wrong_edges / 4;
+    }
 }
 
 /* 
