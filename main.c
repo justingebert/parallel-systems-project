@@ -10,11 +10,14 @@
 #include <omp.h>
 
 int main(void) {
+    static const uint32_t seeds[] = {20260602u, 123u, 777u, 2024u, 42u};
+
     BenchmarkConfig config = {
         .scrambleLen = 8,
-        .seed = 20260602u,
-        .numCores = 16,
-        .repeats = 5
+        .seeds = seeds,
+        .seedCount = (int)(sizeof(seeds) / sizeof(seeds[0])),
+        .numCores = 11,
+        .repeats = 2
     };
 
     struct {
@@ -33,10 +36,9 @@ int main(void) {
     BenchmarkResult results[count];
     for (int i = 0; i < count; ++i) {
         results[i] = benchmarkAlgorithm(algos[i].fn, algos[i].technology, algos[i].algorithm, config);
-        
-        printf("Result: avg=%.6fs min=%.6fs max=%.6fs solved=%d/%d technology=%s algorithm=%s\n",
-               results[i].avgSeconds, results[i].minSeconds, results[i].maxSeconds,
-               results[i].solvedCount, config.repeats, results[i].technology, results[i].algorithm);
+
+        printf("Result: avg=%.6fs technology=%s algorithm=%s\n",
+               results[i].avgSeconds, results[i].technology, results[i].algorithm);
     }
 
     writeBenchmarkReport(config, results, count);

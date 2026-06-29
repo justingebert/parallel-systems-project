@@ -8,24 +8,23 @@
 
 typedef struct {
     int scrambleLen;
-    uint32_t seed;
+    const uint32_t *seeds;  /* each seed -> one scramble, run `repeats` times */
+    int seedCount;
     int numCores;
-    int repeats;
+    int repeats;            /* repeats per seed */
 } BenchmarkConfig;
 
 typedef struct {
     double seconds;
     bool solved;
+    uint32_t seed;
 } BenchmarkRun;
 
 typedef struct {
     const char *technology;
     const char *algorithm;
-    double avgSeconds;
-    double minSeconds;
-    double maxSeconds;
-    int solvedCount;
     int runCount;
+    double avgSeconds;
     BenchmarkRun runs[BENCHMARK_MAX_REPEATS];
 } BenchmarkResult;
 
