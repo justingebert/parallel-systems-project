@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     ca-certificates \
     openssh-client \
+    python3 \
+    python3-matplotlib \
     && rm -rf /var/lib/apt/lists/*
 
 USER ubuntu
