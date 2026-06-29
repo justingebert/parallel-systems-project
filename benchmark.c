@@ -10,15 +10,16 @@
 #include <sys/stat.h>
 #include <errno.h>
 
-BenchmarkResult benchmarkAlgorithm(SolveFn algorithm, const char *technology, const char *algorithm_name, BenchmarkConfig config) {
-    omp_set_num_threads(config.numCores);
+BenchmarkResult benchmarkAlgorithm(SolveFn algorithm, const char *technology,
+                                   const char *algorithm_name, int cores, BenchmarkConfig config) {
+    omp_set_num_threads(cores);
 
     BenchmarkResult result = {
         .technology = technology,
         .algorithm = algorithm_name,
+        .cores = cores,
         .runCount = 0
     };
-
 
     for (int s = 0; s < config.seedCount && result.runCount < BENCHMARK_MAX_REPEATS; ++s) {
         for (int r = 0; r < config.repeats && result.runCount < BENCHMARK_MAX_REPEATS; ++r) {
@@ -54,7 +55,6 @@ void writeBenchmarkReport(BenchmarkConfig config, const BenchmarkResult *results
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "timestamp", timestamp);
     cJSON_AddNumberToObject(root, "scrambleMoves", config.scrambleLen);
-    cJSON_AddNumberToObject(root, "cores", config.numCores);
     cJSON_AddNumberToObject(root, "repeats", config.repeats);
 
     cJSON *seeds = cJSON_AddArrayToObject(root, "seeds");
@@ -69,6 +69,7 @@ void writeBenchmarkReport(BenchmarkConfig config, const BenchmarkResult *results
         cJSON *entry = cJSON_CreateObject();
         cJSON_AddStringToObject(entry, "technology", r->technology);
         cJSON_AddStringToObject(entry, "algorithm", r->algorithm);
+        cJSON_AddNumberToObject(entry, "cores", r->cores);
 
         cJSON *runs = cJSON_AddArrayToObject(entry, "runs");
         for (int j = 0; j < r->runCount; ++j) {
