@@ -38,6 +38,51 @@ static int generateMPIJobs(CubeState cube, int currentDepth, int remainingDepth,
     return count;
 }
 
+static bool mpiStopRequested(void) {
+    int stopWaiting = 0;
+
+    MPI_Iprobe(0, TAG_STOP, MPI_COMM_WORLD, &stopWaiting, MPI_STATUS_IGNORE);
+
+    if (stopWaiting == 0) {
+        return false;
+    }
+
+    MPI_Recv(NULL, 0, MPI_BYTE, 0, TAG_STOP, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+    return true;
+}
+
+static bool depthFirstSearchMPICancellable(CubeState cube, int length, int *nodesSinceCheck) {
+    // Reduce overhead, only check after x nodes
+    (*nodesSinceCheck)++;
+
+    if (*nodesSinceCheck >= 1000) {
+        *nodesSinceCheck = 0;
+
+        if (mpiStopRequested()) {
+            return false;
+        }
+    }
+
+    if (isSolved(cube)) {
+        return true;
+    }
+
+    if (length == 0) {
+        return false;
+    }
+
+    CubeExpansion expansion = expand(cube);
+
+    for (int i = 0; i < CUBE_MOVE_COUNT; i++) {
+        if (depthFirstSearchMPICancellable(expansion.states[i], length - 1, nodesSinceCheck)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 
 bool solveCubeWithMPIScatter(CubeState cube, int length) {
     int rank, size;
@@ -113,7 +158,7 @@ bool solveCubeWithMPIScatter(CubeState cube, int length) {
     return globalFoundInt != 0;
 }
 
-static bool runMPICoordinator(CubeState cube, int length, int size) {
+static bool runMPICoordinator(CubeState cube, int length, int size, bool cancellable) {
     MPISearchJob *allJobs = NULL;
     int totalJobs = 0;
     bool solutionFound = false;
@@ -146,13 +191,32 @@ static bool runMPICoordinator(CubeState cube, int length, int size) {
             &status
         );
 
-        int worker = status.MPI_SOURCE;
+        int workerId = status.MPI_SOURCE;
         int messageTag = status.MPI_TAG;
 
-        printf("DEBUG (%d jobs left): Worker %d send a %s-message\n", maxJobs - nextJob, worker, tagsMapping[messageTag-1]);
+        printf("DEBUG (%d jobs left): Worker %d send a %s-message\n", maxJobs - nextJob, workerId, tagsMapping[messageTag-1]);
 
         if (messageTag == TAG_FOUND) {
             solutionFound = true;
+            
+            if (cancellable) {
+                for (int worker = 1; worker < size; ++worker) {
+                    if (worker != status.MPI_SOURCE) {
+                        MPI_Send(
+                            NULL,
+                            0,
+                            MPI_BYTE,
+                            worker,
+                            TAG_STOP,
+                            MPI_COMM_WORLD
+                        );
+                    }  
+                }
+
+                activeWorkers = 0;
+                break;
+            }
+
             activeWorkers--;
             continue;
         }
@@ -163,7 +227,7 @@ static bool runMPICoordinator(CubeState cube, int length, int size) {
                     NULL,
                     0,
                     MPI_BYTE,
-                    worker,
+                    workerId,
                     TAG_STOP,
                     MPI_COMM_WORLD
                 );
@@ -175,7 +239,7 @@ static bool runMPICoordinator(CubeState cube, int length, int size) {
                     &allJobs[nextJob],
                     sizeof(MPISearchJob),
                     MPI_BYTE,
-                    worker,
+                    workerId,
                     TAG_WORK,
                     MPI_COMM_WORLD
                 );
@@ -196,7 +260,7 @@ static bool runMPICoordinator(CubeState cube, int length, int size) {
     return solutionFound;
 }
 
-static bool runMPIWorker(void) {
+static bool runMPIWorker(bool cancellable) {
     bool localFound = false;
 
     while (true) {
@@ -232,7 +296,13 @@ static bool runMPIWorker(void) {
             break;
         }
 
-        localFound = depthFirstSearch(job.cube, job.remainingDepth);
+        if (cancellable) {
+            int nodesSinceCheck = 0;
+
+            localFound = depthFirstSearchMPICancellable(job.cube, job.remainingDepth, &nodesSinceCheck);
+        } else {
+            localFound = depthFirstSearch(job.cube, job.remainingDepth);
+        }
 
         if(localFound) {
             MPI_Send(NULL, 0, MPI_BYTE, 0, TAG_FOUND, MPI_COMM_WORLD);
@@ -244,7 +314,7 @@ static bool runMPIWorker(void) {
     return localFound;
 }
 
-bool solveCubeWithMPIMasterWorker(CubeState cube, int length) {
+bool solveCubeWithMPIMasterWorker(CubeState cube, int length, bool cancellable) {
     int rank;
     int size;
 
@@ -252,9 +322,9 @@ bool solveCubeWithMPIMasterWorker(CubeState cube, int length) {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     if (rank == 0) {
-        return runMPICoordinator(cube, length, size);
+        return runMPICoordinator(cube, length, size, cancellable);
     }
 
-    return runMPIWorker();
+    return runMPIWorker(cancellable);
 }
 
