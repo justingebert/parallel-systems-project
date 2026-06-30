@@ -9,6 +9,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <omp.h>
+#include <mpi.h>
+
+#include "solve_mpi.h"
 
 int main(void) {
     BenchmarkConfig config = {

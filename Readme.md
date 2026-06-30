@@ -6,8 +6,16 @@ facelet engine; search, OpenMP, and MPI integration come later.
 ## Build and run
 
 ```sh
-make build
-make run
+make build           # build normal gcc binary
+make run             # run normal gcc binary
+```
+
+
+```sh
+make mpi             # build MPI binary
+make run-mpi         # run MPI binary with 4 processes
+
+make run-mpi NP=8    # run MPI binary with 8 processes
 ```
 
 ## Dev container
