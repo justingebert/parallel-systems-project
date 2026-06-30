@@ -1,6 +1,7 @@
 #include "cube.h"
 #include "solve.h"
 #include "benchmark.h"
+#include "ida_star.h"
 
 #include <stdio.h>
 #include <math.h>
@@ -23,6 +24,7 @@ int main(void) {
         SolveFn fn;
     } algos[] = {
         {"serial", "baseline",     depthFirstSearch},
+        {"serial", "ida_star",     initIdaStar},
         {"OpenMP", "parallel_for", initParallelDfs},
         {"OpenMP", "taskloop",     initParallelDfsWithTaskloop},
         {"OpenMP", "taskgroup",    initParallelDfsWithTaskgroup},
