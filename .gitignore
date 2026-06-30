@@ -3,3 +3,5 @@
 *.o
 .idea
 .vscode
+__pycache__
+analysis/plots

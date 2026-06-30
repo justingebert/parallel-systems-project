@@ -8,29 +8,32 @@
 
 typedef struct {
     int scrambleLen;
-    uint32_t seed;
-    int numCores;
-    int repeats;
+    const uint32_t *seeds;     /* each seed -> one scramble, run `repeats` times */
+    int seedCount;
+    const int *coreCounts;     /* OpenMP core counts to sweep (parallel algos) */
+    int coreCountCount;
+    int repeats;               /* repeats per seed */
 } BenchmarkConfig;
 
 typedef struct {
     double seconds;
     bool solved;
+    uint32_t seed;
 } BenchmarkRun;
 
 typedef struct {
     const char *technology;
     const char *algorithm;
-    double avgSeconds;
-    double minSeconds;
-    double maxSeconds;
-    int solvedCount;
+    int cores;      /* OpenMP threads used for this run */
+    int spawnDepth; /* task spawn depth for granularity sweep; 0 = not applicable */
     int runCount;
+    double avgSeconds;
     BenchmarkRun runs[BENCHMARK_MAX_REPEATS];
 } BenchmarkResult;
 
-BenchmarkResult benchmarkAlgorithm(SolveFn algorithm, const char *technology, const char *algorithm_name, BenchmarkConfig config);
+BenchmarkResult benchmarkAlgorithm(SolveFn algorithm, const char *technology,
+                                   const char *algorithm_name, int cores, BenchmarkConfig config);
 
-void writeBenchmarkReport(BenchmarkConfig config, const BenchmarkResult *results, int count);
+void writeBenchmarkReport(BenchmarkConfig config, const BenchmarkResult *results, int count, const char *label);
 
 #endif
