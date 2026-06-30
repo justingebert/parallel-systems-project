@@ -5,6 +5,7 @@
 #include "solve_mpi.h"
 #include "cube.h"
 #include "solve.h"
+#include <omp.h>
 
 #define JOB_DEPTH 2
 
@@ -84,7 +85,7 @@ static bool depthFirstSearchMPICancellable(CubeState cube, int length, int *node
 }
 
 
-bool solveCubeWithMPIScatter(CubeState cube, int length) {
+bool solveCubeWithMPIScatter(CubeState cube, int length, int threads) {
     int rank, size;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -125,13 +126,22 @@ bool solveCubeWithMPIScatter(CubeState cube, int length) {
 
     printf("Rank %d received %d jobs\n", rank, jobsPerRank);
 
+    if (threads > 1) {
+        omp_set_num_threads(threads);
+    }
+
     bool localFound = false;
     
     for (int i = 0; i < jobsPerRank; ++i) {
         MPISearchJob job = localJobs[i];
 
-        if(depthFirstSearch(job.cube, job.remainingDepth)) {
-            localFound = true;
+        if (threads > 1) {
+            localFound = initParallelDfs(job.cube, job.remainingDepth);
+        } else {
+            localFound = depthFirstSearch(job.cube, job.remainingDepth);
+        }
+
+        if (localFound) {
             break;
         }
     }
@@ -260,8 +270,12 @@ static bool runMPICoordinator(CubeState cube, int length, int size, bool cancell
     return solutionFound;
 }
 
-static bool runMPIWorker(bool cancellable) {
+static bool runMPIWorker(bool cancellable, int threads) {
     bool localFound = false;
+
+    if (threads > 1) {
+        omp_set_num_threads(threads);
+    }
 
     while (true) {
         MPI_Send(
@@ -296,7 +310,9 @@ static bool runMPIWorker(bool cancellable) {
             break;
         }
 
-        if (cancellable) {
+        if(threads > 1) {
+            localFound = initParallelDfs(job.cube, job.remainingDepth);
+        } else if (cancellable) {
             int nodesSinceCheck = 0;
 
             localFound = depthFirstSearchMPICancellable(job.cube, job.remainingDepth, &nodesSinceCheck);
@@ -314,7 +330,7 @@ static bool runMPIWorker(bool cancellable) {
     return localFound;
 }
 
-bool solveCubeWithMPIMasterWorker(CubeState cube, int length, bool cancellable) {
+bool solveCubeWithMPIMasterWorker(CubeState cube, int length, bool cancellable, int threads) {
     int rank;
     int size;
 
@@ -325,6 +341,6 @@ bool solveCubeWithMPIMasterWorker(CubeState cube, int length, bool cancellable) 
         return runMPICoordinator(cube, length, size, cancellable);
     }
 
-    return runMPIWorker(cancellable);
+    return runMPIWorker(cancellable, threads);
 }
 

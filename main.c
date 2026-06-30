@@ -49,13 +49,19 @@ int main(void) {
     CubeState cube = scramble(SOLVED, 8);
     
     // MPI Scatter
-    // solveCubeWithMPIScatter(cube, 8);
+    // solveCubeWithMPIScatter(cube, 8, 1);
+    
+    // MPI Scatter (threaded)
+    // solveCubeWithMPIScatter(cube, 8, 4);
 
-    // None-Cancellable
-    // solveCubeWithMPIMasterWorker(cube, 8, false);
+    // MPI Workers None-Cancellable
+    // solveCubeWithMPIMasterWorker(cube, 8, false, 1);
 
-    // Cancellable
-    solveCubeWithMPIMasterWorker(cube, 8, true);
+    // MPI Workers Cancellable
+    // solveCubeWithMPIMasterWorker(cube, 8, true, 1);
+
+    // MPI Workers Threaded
+    solveCubeWithMPIMasterWorker(cube, 8, false, 4);
 
     MPI_Finalize();
 

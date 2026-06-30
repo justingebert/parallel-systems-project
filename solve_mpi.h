@@ -9,8 +9,8 @@ typedef struct {
     int remainingDepth;
 } MPISearchJob;
 
-bool solveCubeWithMPIScatter(CubeState cube, int length);
-bool solveCubeWithMPIMasterWorker(CubeState cube, int length, bool cancellable);
+bool solveCubeWithMPIScatter(CubeState cube, int length, int threads);
+bool solveCubeWithMPIMasterWorker(CubeState cube, int length, bool cancellable, int threads);
 
 
 #endif
