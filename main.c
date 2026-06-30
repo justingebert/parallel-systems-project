@@ -14,12 +14,12 @@ int main(void) {
     static const int coreCounts[] = {1, 2, 4, 8, 11};
 
     BenchmarkConfig config = {
-        .scrambleLen = 7,
+        .scrambleLen = 6,
         .seeds = seeds,
         .seedCount = (int)(sizeof(seeds) / sizeof(seeds[0])),
         .coreCounts = coreCounts,
         .coreCountCount = (int)(sizeof(coreCounts) / sizeof(coreCounts[0])),
-        .repeats = 2
+        .repeats = 10
     };
 
     struct {
@@ -29,7 +29,9 @@ int main(void) {
         bool parallel;
     } algos[] = {
         {"serial", "baseline",     depthFirstSearch,             false},
-        {"OpenMP", "parallel_for", initParallelDfs,              true},
+        {"OpenMP", "for_static",   initParallelDfsStatic,        true},
+        {"OpenMP", "for_dynamic",  initParallelDfsDynamic,       true},
+        {"OpenMP", "for_guided",   initParallelDfsGuided,        true},
         {"OpenMP", "taskloop",     initParallelDfsWithTaskloop,  true},
         {"OpenMP", "taskgroup",    initParallelDfsWithTaskgroup, true},
         {"OpenMP", "taskwait",     initParallelDfsWithTaskwait,  true},
@@ -39,22 +41,19 @@ int main(void) {
     BenchmarkResult results[count * config.coreCountCount];
     int n = 0;
     for (int a = 0; a < count; ++a) {
-        
+
         int steps = algos[a].parallel ? config.coreCountCount : 1;
 
         for (int t = 0; t < steps; ++t) {
             int cores = algos[a].parallel ? config.coreCounts[t] : 1;
             results[n++] = benchmarkAlgorithm(algos[a].fn, algos[a].technology,
                                               algos[a].algorithm, cores, config);
+
+            printf("Result: avg=%.6fs cores=%d technology=%s algorithm=%s\n",
+               results[n - 1].avgSeconds, results[n - 1].cores,
+               results[n - 1].technology, results[n - 1].algorithm);
         }
     }
-
-    for (int i = 0; i < n; ++i) {
-        printf("Result: avg=%.6fs cores=%d technology=%s algorithm=%s\n",
-               results[i].avgSeconds, results[i].cores,
-               results[i].technology, results[i].algorithm);
-    }
-
     writeBenchmarkReport(config, results, n);
 
     return 0;

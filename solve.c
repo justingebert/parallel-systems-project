@@ -47,7 +47,7 @@ bool initParallelDfs(CubeState cube, int length) {
 
     atomic_bool found = false;
 
-    #pragma omp parallel for schedule(static) default(none) shared(expansion, length, found)
+    #pragma omp parallel for schedule(runtime) default(none) shared(expansion, length, found)
     for (size_t i = 0; i < CUBE_MOVE_COUNT; i++) {
         if (atomic_load(&found)) {
             continue;
@@ -59,6 +59,24 @@ bool initParallelDfs(CubeState cube, int length) {
     }
 
     return atomic_load(&found);
+}
+
+
+bool initParallelDfsStatic(CubeState cube, int length) {
+    omp_set_schedule(omp_sched_static, 0);   /* 0 = even contiguous blocks, 2 = round robin */
+    return initParallelDfs(cube, length);
+}
+
+
+bool initParallelDfsDynamic(CubeState cube, int length) {
+    omp_set_schedule(omp_sched_dynamic, 1);  /* 1 = grab one subtree at a time */
+    return initParallelDfs(cube, length);
+}
+
+
+bool initParallelDfsGuided(CubeState cube, int length) {
+    omp_set_schedule(omp_sched_guided, 0);   /* large chunks that shrink -> middle ground */
+    return initParallelDfs(cube, length);
 }
 
 
