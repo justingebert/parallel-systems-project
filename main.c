@@ -54,7 +54,22 @@ int main(void) {
                results[n - 1].technology, results[n - 1].algorithm);
         }
     }
-    writeBenchmarkReport(config, results, n);
+    writeBenchmarkReport(config, results, n, NULL);
+
+    /* Vary the taskgroup spawn depth */
+    int maxCores = config.coreCounts[config.coreCountCount - 1];
+    BenchmarkResult granResults[config.scrambleLen];
+    int gn = 0;
+    for (int depth = 1; depth <= config.scrambleLen; ++depth) {
+        setTaskSpawnDepth(depth);
+        BenchmarkResult r = benchmarkAlgorithm(initParallelDfsWithTaskgroup, "OpenMP",
+                                               "taskgroup", maxCores, config);
+        r.spawnDepth = depth;
+        granResults[gn++] = r;
+
+        printf("Granularity: avg=%.6fs depth=%d cores=%d\n", r.avgSeconds, depth, maxCores);
+    }
+    writeBenchmarkReport(config, granResults, gn, "granularity");
 
     return 0;
 }

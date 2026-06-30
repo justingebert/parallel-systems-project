@@ -14,4 +14,6 @@ bool initParallelDfsWithTaskloop(CubeState cube, int length);
 bool initParallelDfsWithTaskgroup(CubeState cube, int length);
 bool initParallelDfsWithTaskwait(CubeState cube, int length);
 
+void setTaskSpawnDepth(int n);
+
 #endif

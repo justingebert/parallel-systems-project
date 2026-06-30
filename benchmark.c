@@ -47,7 +47,7 @@ BenchmarkResult benchmarkAlgorithm(SolveFn algorithm, const char *technology,
     return result;
 }
 
-void writeBenchmarkReport(BenchmarkConfig config, const BenchmarkResult *results, int count) {
+void writeBenchmarkReport(BenchmarkConfig config, const BenchmarkResult *results, int count, const char *label) {
     char timestamp[32];
     time_t now = time(NULL);
     strftime(timestamp, sizeof timestamp, "%y-%m-%d-%H-%M", localtime(&now));
@@ -70,6 +70,7 @@ void writeBenchmarkReport(BenchmarkConfig config, const BenchmarkResult *results
         cJSON_AddStringToObject(entry, "technology", r->technology);
         cJSON_AddStringToObject(entry, "algorithm", r->algorithm);
         cJSON_AddNumberToObject(entry, "cores", r->cores);
+        cJSON_AddNumberToObject(entry, "spawnDepth", r->spawnDepth);
 
         cJSON *runs = cJSON_AddArrayToObject(entry, "runs");
         for (int j = 0; j < r->runCount; ++j) {
@@ -88,7 +89,11 @@ void writeBenchmarkReport(BenchmarkConfig config, const BenchmarkResult *results
     }
 
     char path[64];
-    snprintf(path, sizeof path, "data/%s.json", timestamp);
+    if (label && *label) {
+        snprintf(path, sizeof path, "data/%s-%s.json", timestamp, label);
+    } else {
+        snprintf(path, sizeof path, "data/%s.json", timestamp);
+    }
 
     char *json = cJSON_Print(root);
     FILE *file = fopen(path, "w");

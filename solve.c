@@ -181,12 +181,16 @@ static void searchTaskwait(CubeState cube, int length, int cutoff, atomic_bool *
     }
 }
 
+static int g_spawnDepth = 2;
+
+void setTaskSpawnDepth(int n) { g_spawnDepth = n; }
+
 
 bool initParallelDfsWithTaskgroup(CubeState cube, int length) {
     atomic_bool found = false;
 
     /* Lower cutoff -> more, smaller tasks. */
-    const int cutoff = length - 2;
+    const int cutoff = length - g_spawnDepth;
 
     #pragma omp parallel shared(found)
     {

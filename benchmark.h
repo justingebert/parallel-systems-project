@@ -25,6 +25,7 @@ typedef struct {
     const char *technology;
     const char *algorithm;
     int cores;      /* OpenMP threads used for this run */
+    int spawnDepth; /* task spawn depth for granularity sweep; 0 = not applicable */
     int runCount;
     double avgSeconds;
     BenchmarkRun runs[BENCHMARK_MAX_REPEATS];
@@ -33,6 +34,6 @@ typedef struct {
 BenchmarkResult benchmarkAlgorithm(SolveFn algorithm, const char *technology,
                                    const char *algorithm_name, int cores, BenchmarkConfig config);
 
-void writeBenchmarkReport(BenchmarkConfig config, const BenchmarkResult *results, int count);
+void writeBenchmarkReport(BenchmarkConfig config, const BenchmarkResult *results, int count, const char *label);
 
 #endif

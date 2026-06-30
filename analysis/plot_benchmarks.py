@@ -10,6 +10,9 @@ HERE = Path(__file__).resolve().parent
 DATA_DIR = HERE.parent / "data"
 OUT_DIR = HERE / "plots"
 
+# Central metric
+METRIC = "median"
+
 
 def latest_report() -> Path:
     files = sorted(DATA_DIR.glob("*.json"))
@@ -25,6 +28,7 @@ def summarize(result: dict) -> dict:
         "technology": result["technology"],
         "algorithm": result["algorithm"],
         "cores": result["cores"],
+        "spawnDepth": result.get("spawnDepth", 0),
         "mean": statistics.mean(times),
         "median": statistics.median(times),
         "stddev": statistics.stdev(times) if len(times) > 1 else 0.0,
@@ -50,7 +54,7 @@ def plot_bars(stats: list, target_cores: int, subtitle: str):
         return at_target[0] if at_target else max(points, key=lambda p: p["cores"])
 
     rows = [pick(points) for points in group_by_algo(stats).values()]
-    labels = [f'{s["technology"]}/{s["algorithm"]}\n{s["cores"]} cores' for s in rows]
+    labels = [f'{s["technology"]}\n{s["algorithm"]}\n{s["cores"]} cores' for s in rows]
     means = [s["mean"] for s in rows]
     median = [s["median"] for s in rows]
     lo = [s["mean"] - s["min"] for s in rows]
@@ -63,6 +67,29 @@ def plot_bars(stats: list, target_cores: int, subtitle: str):
     ax.set_ylabel("solve time (s)")
     ax.legend()
     ax.set_title(f"Solve time by approach: error bars: min/max\n{subtitle}")
+    fig.tight_layout()
+    return fig
+
+
+def plot_granularity(stats: list, subtitle: str):
+    """Median solve time vs task spawn depth at fixed cores."""
+    fig, ax = plt.subplots(figsize=(10, 6))
+    for (tech, algo), points in group_by_algo(stats).items():
+        pts = sorted((p for p in points if p["spawnDepth"]), key=lambda p: p["spawnDepth"])
+        if len(pts) < 2:
+            continue
+        depths = [p["spawnDepth"] for p in pts]
+        median = [p[METRIC] for p in pts]
+        line, = ax.plot(depths, median, marker="o", label=f"{tech}/{algo} ({METRIC})")
+        ax.fill_between(depths, [p["min"] for p in pts], [p["max"] for p in pts],
+                        color=line.get_color(), alpha=0.15, label="min–max")
+        ax.set_xticks(depths)
+
+    ax.set_xlabel("task spawn depth  (top levels that spawn tasks → finer granularity →)")
+    ax.set_ylabel(f"solve time (s) [{METRIC}]")
+    ax.set_ylim(bottom=0)
+    ax.legend()
+    ax.set_title(f"Task granularity sweep: time vs spawn depth\n{subtitle}")
     fig.tight_layout()
     return fig
 
@@ -96,10 +123,15 @@ def main():
     max_cores = max(s["cores"] for s in stats)
 
     OUT_DIR.mkdir(exist_ok=True)
-    figures = {
-        f'{report["timestamp"]}-bars.png': plot_bars(stats, max_cores, subtitle),
-        f'{report["timestamp"]}-scaling.png': plot_scaling(stats, subtitle),
-    }
+    if len({s["spawnDepth"] for s in stats if s["spawnDepth"]}) > 1:
+        # Task Granularity report for taskgroup:
+        gsub = f"{subtitle} · {max_cores} cores"
+        figures = {f'{report["timestamp"]}-granularity.png': plot_granularity(stats, gsub)}
+    else:
+        figures = {
+            f'{report["timestamp"]}-bars.png': plot_bars(stats, max_cores, subtitle),
+            f'{report["timestamp"]}-scaling.png': plot_scaling(stats, subtitle),
+        }
     for name, fig in figures.items():
         out = OUT_DIR / name
         fig.savefig(out, dpi=120)
