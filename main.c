@@ -1,6 +1,7 @@
 #include "cube.h"
 #include "solve.h"
 #include "benchmark.h"
+#include "ida_star.h"
 
 #include <stdio.h>
 #include <math.h>
@@ -8,6 +9,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <omp.h>
+#include <mpi.h>
+
+#include "solve_mpi.h"
 
 int main(void) {
     static const uint32_t seeds[] = {20260602u, 123u, 777u, 2024u, 42u};
@@ -29,6 +33,8 @@ int main(void) {
         bool parallel;
     } algos[] = {
         {"serial", "baseline",     depthFirstSearch,             false},
+        {"serial", "ida_star",     initIdaStar,                 false},
+        {"OpenMP", "for",          initParallelDfs,              true},
         {"OpenMP", "for_static",   initParallelDfsStatic,        true},
         {"OpenMP", "for_dynamic",  initParallelDfsDynamic,       true},
         {"OpenMP", "for_guided",   initParallelDfsGuided,        true},
