@@ -23,12 +23,12 @@ int main(void) {
         const char *algorithm;
         SolveFn fn;
     } algos[] = {
-        //{"serial", "baseline",     depthFirstSearch},
+        {"serial", "baseline",     depthFirstSearch},
         {"serial", "ida_star",     initIdaStar},
-        //{"OpenMP", "parallel_for", initParallelDfs},
-        //{"OpenMP", "taskloop",     initParallelDfsWithTaskloop},
-        //{"OpenMP", "taskgroup",    initParallelDfsWithTaskgroup},
-        //{"OpenMP", "taskwait",     initParallelDfsWithTaskwait},
+        {"OpenMP", "parallel_for", initParallelDfs},
+        {"OpenMP", "taskloop",     initParallelDfsWithTaskloop},
+        {"OpenMP", "taskgroup",    initParallelDfsWithTaskgroup},
+        {"OpenMP", "taskwait",     initParallelDfsWithTaskwait},
     };
     const int count = sizeof(algos) / sizeof(algos[0]);
 

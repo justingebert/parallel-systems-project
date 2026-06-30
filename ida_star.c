@@ -5,18 +5,6 @@
 
 
 // estimates the number of moves needed to solve the cube state by counting wrong stickers and dividing by 9 (the number of stickers per face)
-static int heuristic_old(CubeState cube) {
-    int wrong = 0;
-
-    for (int i = 0; i < CUBE_STICKERS; ++i) {
-        if (cube.stickers[i] != SOLVED.stickers[i]) {
-            wrong += 1;
-        }
-    }
-
-    return wrong / 9;
-}
-
 static int heuristic(CubeState cube) {
     // Corner sticker triplets
     static const int corners[8][3] = {
