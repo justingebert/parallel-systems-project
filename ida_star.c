@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 
-// estimates the number of moves needed to solve the cube state by counting wrong stickers and dividing by 9 (the number of stickers per face)
+// estimates the number of moves needed to solve the cube state by counting the number of corners and edges that are not solved
 static int heuristic(CubeState cube) {
     // Corner sticker triplets
     static const int corners[8][3] = {
